@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment 
+metadata:
+  name: customer-app-deployment
+  labels:
+    app: customer-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: customer-app
+  template:
+    metadata:
+      labels:
+        app: customer-app
+    spec:
+# your application containers
+      containers:
+      - name: customer-app
+        image: tomcat
+        env:
+        - name: LD_PRELOAD
+          value: /opt/dynatrace/oneagent/agent/lib64/liboneagentproc.so
+        # - name: DT_NETWORK_ZONE
+        #   value: <your_network_zone>
+        volumeMounts:
+        - mountPath: /opt/dynatrace/oneagent
+          name: oneagent
+
+# initcontainer to download OneAgent
+      initContainers:
+      - name: install-oneagent
+        image: abstractlabs/dynatrace-oneagent-install:latest
+        env:
+        - name: DT_API_URL
+          value: https://*****.live.dynatrace.com/api
+        - name: DT_PAAS_TOKEN
+          value: abc
+        - name: DT_ONEAGENT_OPTIONS
+          value: flavor=default&arch=all&bitness=all&include=all&skipMetadata=false
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        volumeMounts:
+        - mountPath: /opt/dynatrace/oneagent
+          name: oneagent
+# Make OneAgent available as a volume
+      volumes:
+      - name: oneagent
+        emptyDir: {}
+
+
+# REF -> https://docs.dynatrace.com/docs/ingest-from/setup-on-k8s/deployment/other/pod-runtime
